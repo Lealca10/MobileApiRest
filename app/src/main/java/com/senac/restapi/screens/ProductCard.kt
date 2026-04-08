@@ -13,32 +13,44 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.senac.restapi.model.Product
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import coil.compose.AsyncImage
+
 
 @Composable
-fun ProductCard(product: Product) {
+fun ProductCard(product: Product, onClick: () -> Unit) {
 
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() },
         elevation = CardDefaults.cardElevation(4.dp),
         shape = RoundedCornerShape(8.dp)
     ) {
-        Column() {
+        Column(modifier = Modifier.padding(8.dp)) {
+
+            AsyncImage(
+                model = product.thumbnail,
+                contentDescription = product.title,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(150.dp)
+            )
+
+            Spacer(Modifier.height(8.dp))
+
             Text(
                 text = product.title,
                 style = MaterialTheme.typography.titleMedium
             )
-            Spacer(Modifier.height(4.dp))
+
             Text(
-                text = product.description,
-                maxLines = 3,
-                overflow = TextOverflow.Ellipsis
+                text = "R$ ${product.price}",
+                style = MaterialTheme.typography.bodyMedium
             )
-            //Spacer(Modifier.height(4.dp))
-            //price
         }
     }
-
 }

@@ -24,10 +24,19 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.senac.restapi.model.Product
 import com.senac.restapi.screens.ProductCard
 import com.senac.restapi.ui.theme.RestApiTheme
 import com.senac.restapi.viewmodel.ProductViewModel
+import androidx.compose.foundation.layout.Box
+import androidx.compose.ui.Alignment
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.navigation.compose.*
+import com.senac.restapi.navigation.Routes
+import com.senac.restapi.screens.ProductDetailScreen
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -45,37 +54,94 @@ class MainActivity : ComponentActivity() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MyRestApiApplication() {
+
+    val navController = rememberNavController()
+    val productViewModel: ProductViewModel = viewModel()
+
+    val products = productViewModel.products.collectAsState()
+    val isLoading = productViewModel.isLoading.collectAsState()
+    var selectedProductId by remember { mutableStateOf<Int?>(null) }
+    var isNavigating by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        productViewModel.loadProduct()
+    }
+
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         topBar = {
             TopAppBar(
-                title = {
-                    Text("Products")
-                },
+                title = { Text("Products") },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primary,
                     titleContentColor = MaterialTheme.colorScheme.onPrimary
                 )
             )
         }
-    ) {
-        innerPadding ->
-        Column(modifier = Modifier.padding(innerPadding)) {
-            val productViewModel: ProductViewModel = viewModel()
-            val products = productViewModel.products.collectAsState()
+    ) { innerPadding ->
 
-            LaunchedEffect(Unit) {
-                productViewModel.loadProduct()
+        NavHost(
+            navController = navController,
+            startDestination = Routes.LIST,
+            modifier = Modifier.padding(innerPadding)
+        ) {
+
+            // 🔹 LISTA
+            composable(Routes.LIST) {
+
+                LaunchedEffect(selectedProductId) {
+                    selectedProductId?.let {
+                        kotlinx.coroutines.delay(2000)
+                        navController.navigate("${Routes.DETAIL}/$it")
+                        isNavigating = false
+                    }
+                }
+
+                if (isNavigating) {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator()
+                    }
+                } else if (isLoading.value) {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator()
+                    }
+                } else {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                        contentPadding = PaddingValues(16.dp)
+                    ) {
+                        items(products.value) { product ->
+                            ProductCard(
+                                product = product,
+                                onClick = {
+                                    selectedProductId = product.id
+                                    isNavigating = true
+                                }
+                            )
+                        }
+                    }
+                }
             }
 
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-                contentPadding = PaddingValues(16.dp)
-            ) {
-                items(products.value) { p ->
-                   ProductCard(p)
-               }
+            // 🔹 DETALHE
+            composable("${Routes.DETAIL}/{productId}") { backStackEntry ->
+
+                val productId = backStackEntry.arguments
+                    ?.getString("productId")
+                    ?.toInt()
+
+                val product = products.value.find { it.id == productId }
+
+                product?.let {
+                    ProductDetailScreen(product = it)
+                }
             }
         }
     }
